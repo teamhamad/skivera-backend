@@ -17,9 +17,9 @@ var __commonJS = (cb, mod) => function __require2() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
 
-// ../../node_modules/.pnpm/real-require@0.2.0/node_modules/real-require/src/index.js
+// node_modules/real-require/src/index.js
 var require_src = __commonJS({
-  "../../node_modules/.pnpm/real-require@0.2.0/node_modules/real-require/src/index.js"(exports, module) {
+  "node_modules/real-require/src/index.js"(exports, module) {
     var realImport2 = new Function("modulePath", "return import(modulePath)");
     function realRequire2(modulePath) {
       if (typeof __non_webpack__require__ === "function") {
@@ -31,9 +31,9 @@ var require_src = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/lib/indexes.js
+// node_modules/thread-stream/lib/indexes.js
 var require_indexes = __commonJS({
-  "../../node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/lib/indexes.js"(exports, module) {
+  "node_modules/thread-stream/lib/indexes.js"(exports, module) {
     "use strict";
     var WRITE_INDEX2 = 4;
     var READ_INDEX2 = 8;
@@ -44,65 +44,60 @@ var require_indexes = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/lib/wait.js
+// node_modules/thread-stream/lib/wait.js
 var require_wait = __commonJS({
-  "../../node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/lib/wait.js"(exports, module) {
+  "node_modules/thread-stream/lib/wait.js"(exports, module) {
     "use strict";
-    var MAX_TIMEOUT = 1e3;
+    var WAIT_MS = 1e4;
     function wait(state2, index, expected, timeout, done) {
-      const max = Date.now() + timeout;
-      let current = Atomics.load(state2, index);
-      if (current === expected) {
-        done(null, "ok");
-        return;
-      }
-      let prior = current;
-      const check = (backoff) => {
-        if (Date.now() > max) {
+      const max = timeout === Infinity ? Infinity : Date.now() + timeout;
+      const check = () => {
+        const current = Atomics.load(state2, index);
+        if (current === expected) {
+          done(null, "ok");
+          return;
+        }
+        if (max !== Infinity && Date.now() > max) {
           done(null, "timed-out");
+          return;
+        }
+        const remaining = max === Infinity ? WAIT_MS : Math.min(WAIT_MS, Math.max(1, max - Date.now()));
+        const result = Atomics.waitAsync(state2, index, current, remaining);
+        if (result.async) {
+          result.value.then(check);
         } else {
-          setTimeout(() => {
-            prior = current;
-            current = Atomics.load(state2, index);
-            if (current === prior) {
-              check(backoff >= MAX_TIMEOUT ? MAX_TIMEOUT : backoff * 2);
-            } else {
-              if (current === expected) done(null, "ok");
-              else done(null, "not-equal");
-            }
-          }, backoff);
+          setImmediate(check);
         }
       };
-      check(1);
+      check();
     }
     function waitDiff2(state2, index, expected, timeout, done) {
-      const max = Date.now() + timeout;
-      let current = Atomics.load(state2, index);
-      if (current !== expected) {
-        done(null, "ok");
-        return;
-      }
-      const check = (backoff) => {
-        if (Date.now() > max) {
+      const max = timeout === Infinity ? Infinity : Date.now() + timeout;
+      const check = () => {
+        const current = Atomics.load(state2, index);
+        if (current !== expected) {
+          done(null, "ok");
+          return;
+        }
+        if (max !== Infinity && Date.now() > max) {
           done(null, "timed-out");
+          return;
+        }
+        const remaining = max === Infinity ? WAIT_MS : Math.min(WAIT_MS, Math.max(1, max - Date.now()));
+        const result = Atomics.waitAsync(state2, index, expected, remaining);
+        if (result.async) {
+          result.value.then(check);
         } else {
-          setTimeout(() => {
-            current = Atomics.load(state2, index);
-            if (current !== expected) {
-              done(null, "ok");
-            } else {
-              check(backoff >= MAX_TIMEOUT ? MAX_TIMEOUT : backoff * 2);
-            }
-          }, backoff);
+          setImmediate(check);
         }
       };
-      check(1);
+      check();
     }
     module.exports = { wait, waitDiff: waitDiff2 };
   }
 });
 
-// ../../node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/lib/worker.js
+// node_modules/thread-stream/lib/worker.js
 var { realImport, realRequire } = require_src();
 var { workerData, parentPort } = __require("worker_threads");
 var { WRITE_INDEX, READ_INDEX } = require_indexes();
@@ -115,24 +110,28 @@ var {
 var destination;
 var state = new Int32Array(stateBuf);
 var data = Buffer.from(dataBuf);
+var keepAlive = setInterval(() => {
+}, 60 * 60 * 1e3);
 async function start() {
   let worker;
   try {
-    if (filename.endsWith(".ts") || filename.endsWith(".cts")) {
-      if (!process[/* @__PURE__ */ Symbol.for("ts-node.register.instance")]) {
-        realRequire("ts-node/register");
-      } else if (process.env.TS_NODE_DEV) {
-        realRequire("ts-node-dev");
-      }
-      worker = realRequire(decodeURIComponent(filename.replace(process.platform === "win32" ? "file:///" : "file://", "")));
-    } else {
-      worker = await realImport(filename);
-    }
+    worker = await realImport(filename);
   } catch (error) {
     if ((error.code === "ENOTDIR" || error.code === "ERR_MODULE_NOT_FOUND") && filename.startsWith("file://")) {
       worker = realRequire(decodeURIComponent(filename.replace("file://", "")));
     } else if (error.code === void 0 || error.code === "ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING") {
       try {
+        worker = realRequire(decodeURIComponent(filename.replace(process.platform === "win32" ? "file:///" : "file://", "")));
+      } catch {
+        throw error;
+      }
+    } else if (filename.endsWith(".ts") || filename.endsWith(".cts")) {
+      try {
+        if (!process[Symbol.for("ts-node.register.instance")]) {
+          realRequire("ts-node/register");
+        } else if (process.env.TS_NODE_DEV) {
+          realRequire("ts-node-dev");
+        }
         worker = realRequire(decodeURIComponent(filename.replace(process.platform === "win32" ? "file:///" : "file://", "")));
       } catch {
         throw error;
@@ -158,6 +157,7 @@ async function start() {
     const end = Atomics.load(state, WRITE_INDEX);
     Atomics.store(state, READ_INDEX, end);
     Atomics.notify(state, READ_INDEX);
+    clearInterval(keepAlive);
     setImmediate(() => {
       process.exit(0);
     });
