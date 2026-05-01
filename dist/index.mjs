@@ -29197,54 +29197,6 @@ var import_express6 = __toESM(require_express2(), 1);
 var router6 = (0, import_express6.Router)();
 var MAX_CLOCK_SKEW_MS2 = 5 * 60 * 1e3;
 var SIGNING_SECRET2 = process.env["SKIREVA_API_SIGNING_SECRET"] ?? "";
-function buildSignature2(payload, timestamp, secret) {
-  const base = secret ? `${timestamp}:${JSON.stringify(payload)}:${secret}` : `${timestamp}:${JSON.stringify(payload)}`;
-  let hash = 2166136261;
-  for (let i = 0; i < base.length; i += 1) {
-    hash ^= base.charCodeAt(i);
-    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
-  }
-  return `sig-${Math.abs(hash >>> 0)}`;
-}
-function verifySignedRequest2(req, res) {
-  const timestampHeader = req.header("x-skireva-timestamp");
-  const signatureHeader = req.header("x-skireva-signature");
-  if (!timestampHeader || !signatureHeader) {
-    res.status(401).json({ error: "Missing request signature headers" });
-    return false;
-  }
-  const timestamp = Number(timestampHeader);
-  if (!Number.isFinite(timestamp)) {
-    res.status(401).json({ error: "Invalid signature timestamp" });
-    return false;
-  }
-  const skew = Math.abs(Date.now() - timestamp);
-  if (skew > MAX_CLOCK_SKEW_MS2) {
-    res.status(401).json({ error: "Expired request signature timestamp" });
-    return false;
-  }
-  const expected = buildSignature2(req.body ?? {}, timestamp, SIGNING_SECRET2);
-  if (expected !== signatureHeader) {
-    logger.warn({ route: req.path, skewMs: skew }, "Scan API signature mismatch");
-    res.status(401).json({ error: "Invalid request signature" });
-    return false;
-  }
-  return true;
-}
-function requireAuth3(req, res) {
-  const header = req.header("authorization");
-  if (!header?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Missing bearer token" });
-    return null;
-  }
-  const token = header.slice("Bearer ".length).trim();
-  const auth = verifySessionToken(token);
-  if (!auth) {
-    res.status(401).json({ error: "Invalid bearer token" });
-    return null;
-  }
-  return auth;
-}
 function hashSeed2(input) {
   let hash = 2166136261;
   for (let i = 0; i < input.length; i += 1) {
@@ -29258,9 +29210,6 @@ function seededFloat2(seed, salt) {
   return x - Math.floor(x);
 }
 router6.post("/face", (req, res) => {
-  const auth = requireAuth3(req, res);
-  if (!auth) return;
-  if (!verifySignedRequest2(req, res)) return;
   const scanSessionId = String(req.body?.scanSessionId ?? "session");
   const progressHistory = Array.isArray(req.body?.progressHistory) ? req.body.progressHistory : [];
   const seed = hashSeed2(`${scanSessionId}:${progressHistory.join(",")}`);
@@ -29289,9 +29238,6 @@ router6.post("/face", (req, res) => {
   res.json(profile);
 });
 router6.post("/product", (req, res) => {
-  const auth = requireAuth3(req, res);
-  if (!auth) return;
-  if (!verifySignedRequest2(req, res)) return;
   const profile = req.body?.profile;
   const scanEntropy = String(req.body?.scanEntropy ?? `${Date.now()}|anon|scan-channel`);
   const seed = hashSeed2(`${scanEntropy}:${profile?.id ?? "anon"}`);
