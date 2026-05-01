@@ -32537,7 +32537,7 @@ var HealthCheckResponse = objectType({
 
 // src/routes/health.ts
 var router2 = (0, import_express2.Router)();
-router2.get("/healthz", (_req, res) => {
+router2.get("/health", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
   res.json(data);
 });
@@ -33085,6 +33085,9 @@ router6.post("/product", (req, res) => {
   res.json(report);
 });
 var scan_default = router6;
+router6.get("/test-token", (req, res) => {
+  res.json({ message: "Auth bypassed for testing" });
+});
 
 // src/routes/index.ts
 var router7 = (0, import_express7.Router)();
