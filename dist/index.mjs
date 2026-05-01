@@ -28657,6 +28657,24 @@ var import_express8 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 
+// src/lib/logger.ts
+var import_pino = __toESM(require_pino(), 1);
+var isProduction = process.env.NODE_ENV === "production";
+var logger = (0, import_pino.default)({
+  level: process.env.LOG_LEVEL ?? "info",
+  redact: [
+    "req.headers.authorization",
+    "req.headers.cookie",
+    "res.headers['set-cookie']"
+  ],
+  ...isProduction ? {} : {
+    transport: {
+      target: "pino-pretty",
+      options: { colorize: true }
+    }
+  }
+});
+
 // src/routes/index.ts
 var import_express7 = __toESM(require_express2(), 1);
 
@@ -28811,26 +28829,6 @@ var health_default = router2;
 
 // src/routes/neural.ts
 var import_express3 = __toESM(require_express2(), 1);
-
-// src/lib/logger.ts
-var import_pino = __toESM(require_pino(), 1);
-var isProduction = process.env.NODE_ENV === "production";
-var logger = (0, import_pino.default)({
-  level: process.env.LOG_LEVEL ?? "info",
-  redact: [
-    "req.headers.authorization",
-    "req.headers.cookie",
-    "res.headers['set-cookie']"
-  ],
-  ...isProduction ? {} : {
-    transport: {
-      target: "pino-pretty",
-      options: { colorize: true }
-    }
-  }
-});
-
-// src/routes/neural.ts
 var router3 = (0, import_express3.Router)();
 var MAX_CLOCK_SKEW_MS = 5 * 60 * 1e3;
 var SIGNING_SECRET = process.env["SKIREVA_API_SIGNING_SECRET"] ?? "";
@@ -29367,28 +29365,12 @@ var routes_default = router7;
 
 // src/app.ts
 var app = (0, import_express8.default)();
-app.use(
-  (0, import_pino_http.default)({
-    logger,
-    serializers: {
-      req(req) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0]
-        };
-      },
-      res(res) {
-        return {
-          statusCode: res.statusCode
-        };
-      }
-    }
-  })
-);
 app.use((0, import_cors.default)());
+app.use((0, import_pino_http.default)({ logger }));
 app.use(import_express8.default.json());
-app.use(import_express8.default.urlencoded({ extended: true }));
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+});
 app.use("/api", routes_default);
 var app_default = app;
 
