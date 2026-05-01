@@ -8,9 +8,10 @@
     "dev": "node build.mjs && node dist/index.mjs"
   },
   "dependencies": {
+    "@google/genai": "^1.51.0",
+    "@types/node": "^22.13.10",
     "express": "^5.1.0",
-    "zod": "^3.24.2",
-    "@types/node": "^22.13.10"
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "esbuild": "^0.25.1",
